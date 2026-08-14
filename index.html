@@ -4,10 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>zombotanic map</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/heroicons@2.1.1/css/heroicons.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js">
+    </script>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             background: #0a0a0a;
@@ -28,16 +32,10 @@
             border-bottom: 1px solid #222222;
             flex-shrink: 0;
             z-index: 10;
-            animation: fadeDown 0.4s ease-out;
-        }
-        @keyframes fadeDown {
-            from { opacity: 0; transform: translateY(-8px); }
-            to { opacity: 1; transform: translateY(0); }
         }
         #toolbar h1 {
             font-size: 18px;
             font-weight: 600;
-            letter-spacing: -0.3px;
             color: #ffffff;
             margin-right: 12px;
             white-space: nowrap;
@@ -64,9 +62,10 @@
             background: #222222;
             border-color: #555555;
             color: #ffffff;
-            transform: scale(1.02);
         }
-        #toolbar .btn:active { transform: scale(0.95); }
+        #toolbar .btn:active {
+            transform: scale(0.95);
+        }
         #toolbar .btn-primary {
             border-color: #3b82f6;
             color: #3b82f6;
@@ -84,6 +83,15 @@
             background: #8b5cf6;
             color: #ffffff;
             border-color: #8b5cf6;
+        }
+        #toolbar .btn-info {
+            border-color: #06b6d4;
+            color: #06b6d4;
+        }
+        #toolbar .btn-info:hover {
+            background: #06b6d4;
+            color: #ffffff;
+            border-color: #06b6d4;
         }
         #toolbar .sep {
             width: 1px;
@@ -103,7 +111,6 @@
             display: inline-flex;
             align-items: center;
             gap: 4px;
-            transition: opacity 0.3s ease;
         }
         #toolbar .info-badge strong {
             color: #ffffff;
@@ -115,45 +122,21 @@
             overflow: hidden;
             background: #0a0a0a;
             cursor: grab;
-            animation: fadeIn 0.6s ease-out;
         }
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+        #map-container:active {
+            cursor: grabbing;
         }
-        #map-container:active { cursor: grabbing; }
         #map-container canvas {
             display: block;
             position: absolute;
             top: 0;
             left: 0;
+            width: 100%;
+            height: 100%;
             image-rendering: pixelated;
         }
-        #hover-info {
-            position: absolute;
-            bottom: 28px;
-            left: 50%;
-            transform: translateX(-50%) translateY(8px);
-            background: rgba(17, 17, 17, 0.92);
-            backdrop-filter: blur(12px);
-            padding: 8px 20px;
-            border-radius: 40px;
-            font-size: 13px;
-            color: #b0b0b0;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.3s ease, transform 0.3s ease;
-            border: 1px solid #2a2a2a;
-            white-space: nowrap;
-            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
-        }
-        #hover-info.visible {
-            opacity: 1;
-            transform: translateX(-50%) translateY(0);
-        }
-        #hover-info span {
-            color: #ffffff;
-            font-weight: 500;
+        #mapCanvas {
+            z-index: 1;
         }
         .file-input-wrap {
             position: relative;
@@ -168,26 +151,193 @@
             height: 100%;
             cursor: pointer;
         }
+        .icon {
+            width: 18px;
+            height: 18px;
+            display: inline-block;
+            flex-shrink: 0;
+        }
+        .icon-sm {
+            width: 14px;
+            height: 14px;
+        }
+
+        /* Модальное окно */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(8px);
+            z-index: 100;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease-out;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal {
+            background: #1a1a1a;
+            border: 1px solid #333333;
+            border-radius: 16px;
+            padding: 32px 40px;
+            max-width: 520px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 24px 64px rgba(0, 0, 0, 0.8);
+            animation: slideUp 0.3s ease-out;
+        }
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+        .modal h2 {
+            font-size: 22px;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .modal .subtitle {
+            color: #888888;
+            font-size: 14px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid #2a2a2a;
+            padding-bottom: 16px;
+        }
+        .modal .section {
+            margin-bottom: 20px;
+        }
+        .modal .section h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #06b6d4;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+        }
+        .modal .shortcut {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid #222222;
+            font-size: 14px;
+        }
+        .modal .shortcut:last-child {
+            border-bottom: none;
+        }
+        .modal .shortcut .key {
+            background: #2a2a2a;
+            padding: 2px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #cccccc;
+            border: 1px solid #3a3a3a;
+            font-family: monospace;
+        }
+        .modal .shortcut .action {
+            color: #aaaaaa;
+        }
+        .modal .close-btn {
+            background: #2a2a2a;
+            border: 1px solid #444444;
+            color: #ffffff;
+            padding: 8px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 8px;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+        .modal .close-btn:hover {
+            background: #333333;
+            border-color: #555555;
+        }
+        .modal .version {
+            color: #555555;
+            font-size: 12px;
+            text-align: center;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #222222;
+        }
+
         @media (max-width: 820px) {
-            #toolbar { padding: 8px 14px; gap: 6px; }
-            #toolbar h1 { font-size: 15px; margin-right: 6px; }
-            #toolbar .btn { font-size: 12px; padding: 4px 10px; min-height: 30px; min-width: 30px; }
-            #toolbar .info-badge { font-size: 11px; padding: 2px 10px; }
-            #hover-info { font-size: 12px; padding: 6px 14px; bottom: 18px; }
+            #toolbar {
+                padding: 8px 14px;
+                gap: 6px;
+            }
+            #toolbar h1 {
+                font-size: 15px;
+                margin-right: 6px;
+            }
+            #toolbar .btn {
+                font-size: 12px;
+                padding: 4px 10px;
+                min-height: 30px;
+                min-width: 30px;
+            }
+            #toolbar .info-badge {
+                font-size: 11px;
+                padding: 2px 10px;
+            }
+            .icon {
+                width: 16px;
+                height: 16px;
+            }
+            .icon-sm {
+                width: 12px;
+                height: 12px;
+            }
+            .modal {
+                padding: 24px 20px;
+            }
+            .modal h2 {
+                font-size: 18px;
+            }
         }
         @media (max-width: 600px) {
-            #toolbar { flex-wrap: wrap; justify-content: center; }
-            #toolbar h1 { width: 100%; text-align: center; margin-right: 0; }
+            #toolbar {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            #toolbar h1 {
+                width: 100%;
+                text-align: center;
+                margin-right: 0;
+            }
         }
     </style>
 </head>
 <body>
     <div id="toolbar">
         <h1>zombotanic map</h1>
-
         <div class="file-input-wrap" id="manualTmxWrap" style="display:none;">
             <button class="btn btn-primary">
-                <svg class="heroicon heroicon-document" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                     <polyline points="14 2 14 8 20 8" />
                 </svg>
@@ -195,10 +345,9 @@
             </button>
             <input type="file" id="tmxFileInput" accept=".tmx,.xml" />
         </div>
-
         <div class="file-input-wrap" id="manualImgWrap" style="display:none;">
             <button class="btn btn-success">
-                <svg class="heroicon heroicon-photo" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
                     <circle cx="8.5" cy="8.5" r="1.5" />
                     <polyline points="21 15 16 10 5 21" />
@@ -207,11 +356,9 @@
             </button>
             <input type="file" id="imageFileInput" accept="image/*" multiple />
         </div>
-
         <span class="sep" id="manualSep" style="display:none;"></span>
-
         <span class="info-badge" id="mapInfo">
-            <svg class="heroicon heroicon-grid" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="3" y="3" width="7" height="7" />
                 <rect x="14" y="3" width="7" height="7" />
                 <rect x="3" y="14" width="7" height="7" />
@@ -219,9 +366,8 @@
             </svg>
             <strong>—</strong>
         </span>
-
         <span class="info-badge" id="tileInfo">
-            <svg class="heroicon heroicon-squares-2x2" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="3" y="3" width="7" height="7" />
                 <rect x="14" y="3" width="7" height="7" />
                 <rect x="3" y="14" width="7" height="7" />
@@ -229,32 +375,76 @@
             </svg>
             <strong>—</strong>
         </span>
-
-        <button class="btn" id="zoomInBtn" title="приблизить">
-            <svg class="heroicon heroicon-plus" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <button class="btn" id="zoomInBtn">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="12" y1="5" x2="12" y2="19" />
                 <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
         </button>
-
-        <button class="btn" id="zoomOutBtn" title="отдалить">
-            <svg class="heroicon heroicon-minus" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <button class="btn" id="zoomOutBtn">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
         </button>
-
-        <button class="btn" id="resetViewBtn" title="сбросить вид">
-            <svg class="heroicon heroicon-arrow-uturn-left" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <button class="btn" id="resetViewBtn">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="8 8 3 13 8 18" />
                 <path d="M21 13H3" />
             </svg>
         </button>
+        <button class="btn btn-info" id="helpBtn">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+        </button>
     </div>
-
     <div id="map-container">
         <canvas id="mapCanvas"></canvas>
-        <div id="hover-info">
-            Tile <span id="hoverTileId">—</span> &nbsp;·&nbsp; (<span id="hoverPosX">0</span>, <span id="hoverPosY">0</span>)
+    </div>
+
+    <div class="modal-overlay" id="helpModal">
+        <div class="modal">
+            <h2>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+                управление картой
+            </h2>
+            <div class="subtitle">zombotanic map — просмотрщик карты из игры zombotanic</div>
+
+            <div class="section">
+                <h3>мышь</h3>
+                <div class="shortcut">
+                    <span class="action">перетаскивание</span>
+                    <span class="key">зажать ЛКМ + двигать</span>
+                </div>
+                <div class="shortcut">
+                    <span class="action">приблизить / отдалить</span>
+                    <span class="key">колёсико мыши</span>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3>клавиатура</h3>
+                <div class="shortcut">
+                    <span class="action">cбросить вид</span>
+                    <span class="key">ctrl + 0</span>
+                </div>
+                <div class="shortcut">
+                    <span class="action">приблизить</span>
+                    <span class="key">ctrl + +</span>
+                </div>
+                <div class="shortcut">
+                    <span class="action">отдалить</span>
+                    <span class="key">ctrl + -</span>
+                </div>
+            </div>
+            <button class="close-btn" id="closeHelpBtn">✕ Закрыть</button>
+            <div class="version">при сильном отдалении может быть проблемы</div>
         </div>
     </div>
 
@@ -262,47 +452,73 @@
         const canvas = document.getElementById('mapCanvas');
         const ctx = canvas.getContext('2d');
         const container = document.getElementById('map-container');
-
         const mapInfoEl = document.getElementById('mapInfo');
         const tileInfoEl = document.getElementById('tileInfo');
-        const hoverInfo = document.getElementById('hover-info');
-        const hoverTileId = document.getElementById('hoverTileId');
-        const hoverPosX = document.getElementById('hoverPosX');
-        const hoverPosY = document.getElementById('hoverPosY');
-
         const zoomInBtn = document.getElementById('zoomInBtn');
         const zoomOutBtn = document.getElementById('zoomOutBtn');
         const resetViewBtn = document.getElementById('resetViewBtn');
-
+        const helpBtn = document.getElementById('helpBtn');
+        const helpModal = document.getElementById('helpModal');
+        const closeHelpBtn = document.getElementById('closeHelpBtn');
         const manualTmxWrap = document.getElementById('manualTmxWrap');
         const manualImgWrap = document.getElementById('manualImgWrap');
         const manualSep = document.getElementById('manualSep');
         const tmxFileInput = document.getElementById('tmxFileInput');
         const imageFileInput = document.getElementById('imageFileInput');
 
-        const state = {
-            map: null,
-            tilesetImages: {},
-            zoom: 1,
-            offsetX: 0,
-            offsetY: 0,
-            tilesetsLoaded: false,
-            hoverGid: null,
-            hoverCol: -1,
-            hoverRow: -1,
-            cacheCanvas: null,
-            cacheScale: 1,
-        };
+        helpBtn.addEventListener('click', () => {
+            helpModal.classList.add('active');
+        });
+
+        closeHelpBtn.addEventListener('click', () => {
+            helpModal.classList.remove('active');
+        });
+
+        helpModal.addEventListener('click', (e) => {
+            if (e.target === helpModal) {
+                helpModal.classList.remove('active');
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && helpModal.classList.contains('active')) {
+                helpModal.classList.remove('active');
+            }
+            if (e.key === '?' && !helpModal.classList.contains('active')) {
+                e.preventDefault();
+                helpModal.classList.add('active');
+            }
+        });
+
+        let mapData = null;
+        let tilesetImages = {};
+        let tilesetsLoaded = false;
+        let zoom = 1;
+        let offsetX = 0;
+        let offsetY = 0;
+        let dpr = window.devicePixelRatio || 1;
+
+        let tileData = null;
+        let mapWidth = 0;
+        let mapHeight = 0;
+        let tileWidth = 0;
+        let tileHeight = 0;
+        let mapTotalWidth = 0;
+        let mapTotalHeight = 0;
+
+        let renderRequested = false;
+        let tileCache = {};
+        let chunkCache = {};
+        let chunkSize = 16;
 
         function updateInfo() {
-            if (!state.map) {
+            if (!mapData) {
                 mapInfoEl.innerHTML = '<strong>—</strong>';
                 tileInfoEl.innerHTML = '<strong>—</strong>';
                 return;
             }
-            const m = state.map;
-            mapInfoEl.innerHTML = `<strong>${m.width}×${m.height}</strong> (${m.tilewidth}×${m.tileheight}px)`;
-            tileInfoEl.innerHTML = `<strong>${(m.width * m.height).toLocaleString()}</strong>`;
+            mapInfoEl.innerHTML = `<strong>${mapData.width}×${mapData.height}</strong> (${mapData.tilewidth}×${mapData.tileheight}px)`;
+            tileInfoEl.innerHTML = `<strong>${(mapData.width * mapData.height).toLocaleString()}</strong>`;
         }
 
         async function fetchTilesetDefinition(url) {
@@ -346,8 +562,6 @@
                 tilesets: [],
                 layers: [],
             };
-
-            if (map.orientation !== 'orthogonal') console.warn('Only orthogonal maps are fully supported.');
 
             const tilesetEls = doc.querySelectorAll('tileset');
             for (const tsEl of tilesetEls) {
@@ -416,17 +630,20 @@
                             const view = new DataView(decompressed.buffer);
                             const len = decompressed.length / 4;
                             for (let i = 0; i < len; i++) tileData.push(view.getInt32(i * 4, true));
-                        } catch (e) { console.error('Base64 decode error:', e); tileData = []; }
+                        } catch (e) { console.error('Base64 decode error:', e);
+                            tileData = []; }
                     } else {
                         const tileEls = dataEl.querySelectorAll('tile');
                         for (const tEl of tileEls) tileData.push(parseInt(tEl.getAttribute('gid')) || 0);
                     }
                 }
                 while (tileData.length < width * height) tileData.push(0);
-                map.layers.push({ name, width, height, opacity, encoding, compression, data: tileData.slice(0, width * height) });
+                map.layers.push({ name, width, height, opacity, encoding, compression, data: tileData.slice(0, width *
+                        height) });
             }
             if (map.layers.length === 0) {
-                map.layers.push({ name: 'default', width: map.width, height: map.height, opacity: 1, data: new Array(map.width * map.height).fill(0) });
+                map.layers.push({ name: 'default', width: map.width, height: map.height, opacity: 1, data: new Array(map
+                        .width * map.height).fill(0) });
             }
             return map;
         }
@@ -436,27 +653,22 @@
                 const images = {};
                 const tilesets = map.tilesets.filter(ts => ts.imageSource);
                 if (tilesets.length === 0) {
-                    console.warn('No tileset images found');
                     resolve(images);
                     return;
                 }
-
                 let loaded = 0;
                 const total = tilesets.length;
-
                 tilesets.forEach((ts) => {
                     const src = ts.imageSource;
-                    console.log(`Loading image for firstgid=${ts.firstgid}: ${src}`);
                     const img = new Image();
                     img.crossOrigin = 'anonymous';
                     img.onload = () => {
-                        console.log(`Loaded: ${src}`);
                         images[ts.firstgid] = img;
                         loaded++;
                         if (loaded === total) resolve(images);
                     };
                     img.onerror = () => {
-                        console.error(`Failed to load: ${src}`);
+                        console.warn('Failed to load image:', src);
                         loaded++;
                         if (loaded === total) resolve(images);
                     };
@@ -465,288 +677,337 @@
             });
         }
 
-        function buildCache() {
-            const map = state.map;
-            if (!map || !state.tilesetsLoaded) return;
-
-            const tw = map.tilewidth;
-            const th = map.tileheight;
-            const w = map.width;
-            const h = map.height;
-            const data = map.layers[0].data;
-
-            const fullWidth = w * tw;
-            const fullHeight = h * th;
-            const maxCacheDim = 8192;
-            let scale = 1;
-            if (fullWidth > maxCacheDim || fullHeight > maxCacheDim) {
-                scale = Math.min(maxCacheDim / fullWidth, maxCacheDim / fullHeight);
-                if (scale < 0.5) scale = 0.5;
+        function getTileImage(gid) {
+            if (gid === 0) return null;
+            let ts = null;
+            let localId = gid;
+            for (const t of mapData.tilesets) {
+                if (gid >= t.firstgid) {
+                    ts = t;
+                    localId = gid - t.firstgid;
+                } else break;
             }
-            state.cacheScale = scale;
+            if (!ts) return null;
+            const img = tilesetImages[ts.firstgid];
+            if (!img) return null;
 
-            const cacheW = Math.round(fullWidth * scale);
-            const cacheH = Math.round(fullHeight * scale);
+            const cols = ts.columns || Math.floor(img.width / ts.tilewidth);
+            const tileIndex = localId;
+            const sx = (tileIndex % cols) * ts.tilewidth;
+            const sy = Math.floor(tileIndex / cols) * ts.tileheight;
 
-            const cacheCanvas = document.createElement('canvas');
-            cacheCanvas.width = cacheW;
-            cacheCanvas.height = cacheH;
-            const cacheCtx = cacheCanvas.getContext('2d');
+            const key = ts.firstgid + '_' + localId;
+            if (!tileCache[key]) {
+                const c = document.createElement('canvas');
+                c.width = ts.tilewidth;
+                c.height = ts.tileheight;
+                const cctx = c.getContext('2d');
+                cctx.drawImage(img, sx, sy, ts.tilewidth, ts.tileheight, 0, 0, ts.tilewidth, ts.tileheight);
+                tileCache[key] = c;
+            }
+            return tileCache[key];
+        }
 
-            // Отключаем сглаживание для чётких краёв
-            cacheCtx.imageSmoothingEnabled = false;
+        function getChunk(chunkRow, chunkCol) {
+            const key = chunkRow + '_' + chunkCol;
+            if (chunkCache[key]) return chunkCache[key];
 
-            console.log(`Building cache ${cacheW}x${cacheH} (scale ${scale})`);
+            const tw = tileWidth;
+            const th = tileHeight;
+            const startRow = chunkRow * chunkSize;
+            const startCol = chunkCol * chunkSize;
+            const endRow = Math.min(startRow + chunkSize, mapHeight);
+            const endCol = Math.min(startCol + chunkSize, mapWidth);
 
-            // Рисуем с расширением на 1 пиксель, чтобы закрыть зазоры
-            const pad = 0.5;
+            const c = document.createElement('canvas');
+            const cw = (endCol - startCol) * tw;
+            const ch = (endRow - startRow) * th;
+            c.width = cw;
+            c.height = ch;
+            const cctx = c.getContext('2d');
+            cctx.imageSmoothingEnabled = false;
 
-            for (let row = 0; row < h; row++) {
-                for (let col = 0; col < w; col++) {
-                    const idx = row * w + col;
-                    const gid = data[idx] || 0;
+            let allEmpty = true;
+            for (let r = startRow; r < endRow; r++) {
+                for (let col = startCol; col < endCol; col++) {
+                    const idx = r * mapWidth + col;
+                    const gid = tileData[idx] || 0;
                     if (gid === 0) continue;
-
-                    let ts = null;
-                    let localId = gid;
-                    for (const t of map.tilesets) {
-                        if (gid >= t.firstgid) {
-                            ts = t;
-                            localId = gid - t.firstgid;
-                        } else break;
-                    }
-                    if (!ts) continue;
-                    const img = state.tilesetImages[ts.firstgid];
+                    allEmpty = false;
+                    const img = getTileImage(gid);
                     if (!img) continue;
-
-                    const cols = ts.columns || Math.floor(img.width / ts.tilewidth);
-                    const tileIndex = localId;
-                    const sx = (tileIndex % cols) * ts.tilewidth;
-                    const sy = Math.floor(tileIndex / cols) * ts.tileheight;
-
-                    const dx = col * tw * scale;
-                    const dy = row * th * scale;
-                    const dw = tw * scale + pad;
-                    const dh = th * scale + pad;
-
-                    cacheCtx.drawImage(img, sx, sy, ts.tilewidth, ts.tileheight, dx, dy, dw, dh);
+                    const dx = (col - startCol) * tw;
+                    const dy = (r - startRow) * th;
+                    cctx.drawImage(img, 0, 0, tw, th, dx, dy, tw, th);
                 }
             }
 
-            state.cacheCanvas = cacheCanvas;
-            console.log('Cache built');
+            if (allEmpty) {
+                chunkCache[key] = null;
+                return null;
+            }
+
+            chunkCache[key] = c;
+            return c;
+        }
+
+        function setupMap() {
+            if (!mapData || !tilesetsLoaded) {
+                console.log('Cannot setup map: missing data');
+                return;
+            }
+
+            tileData = mapData.layers[0].data;
+            mapWidth = mapData.width;
+            mapHeight = mapData.height;
+            tileWidth = mapData.tilewidth;
+            tileHeight = mapData.tileheight;
+            mapTotalWidth = mapWidth * tileWidth;
+            mapTotalHeight = mapHeight * tileHeight;
+
+            chunkSize = Math.max(4, Math.floor(64 / Math.max(tileWidth, tileHeight) * 4));
+            chunkSize = Math.min(32, chunkSize);
+
+            tileCache = {};
+            chunkCache = {};
+
+            zoom = 1;
+            offsetX = 0;
+            offsetY = 0;
+
+            console.log('Map setup complete:', mapWidth, 'x', mapHeight, 'chunk size:', chunkSize);
+            renderMap();
         }
 
         function renderMap() {
-            const map = state.map;
-            if (!map || !state.tilesetsLoaded) {
-                const rect = container.getBoundingClientRect();
-                canvas.width = rect.width * (window.devicePixelRatio || 1);
-                canvas.height = rect.height * (window.devicePixelRatio || 1);
-                canvas.style.width = rect.width + 'px';
-                canvas.style.height = rect.height + 'px';
-                ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
-                ctx.fillStyle = '#0a0a0a';
-                ctx.fillRect(0, 0, rect.width, rect.height);
-                return;
-            }
+            if (renderRequested) return;
+            renderRequested = true;
+            requestAnimationFrame(() => {
+                renderRequested = false;
+                renderMapNow();
+            });
+        }
 
-            const layer = map.layers[0];
-            const data = layer.data;
-            const w = map.width;
-            const h = map.height;
-            const tw = map.tilewidth;
-            const th = map.tileheight;
-
-            const zoom = state.zoom;
+        function renderMapNow() {
             const rect = container.getBoundingClientRect();
-            const cw = rect.width;
-            const ch = rect.height;
+            const w = rect.width;
+            const h = rect.height;
 
-            const dpr = window.devicePixelRatio || 1;
-            canvas.width = cw * dpr;
-            canvas.height = ch * dpr;
-            canvas.style.width = cw + 'px';
-            canvas.style.height = ch + 'px';
+            if (w === 0 || h === 0) return;
+
+            canvas.width = w * dpr;
+            canvas.height = h * dpr;
+            canvas.style.width = w + 'px';
+            canvas.style.height = h + 'px';
             ctx.setTransform(1, 0, 0, 1, 0, 0);
             ctx.scale(dpr, dpr);
 
-            ctx.imageSmoothingEnabled = false;
-
             ctx.fillStyle = '#0a0a0a';
-            ctx.fillRect(0, 0, cw, ch);
+            ctx.fillRect(0, 0, w, h);
 
-            if (zoom < 1 && state.cacheCanvas) {
-                const cache = state.cacheCanvas;
-                const scale = state.cacheScale;
-                const left = state.offsetX;
-                const top = state.offsetY;
-                const right = left + cw / zoom;
-                const bottom = top + ch / zoom;
-                const leftCache = left * scale;
-                const topCache = top * scale;
-                const widthCache = (right - left) * scale;
-                const heightCache = (bottom - top) * scale;
-                ctx.drawImage(cache, leftCache, topCache, widthCache, heightCache, 0, 0, cw, ch);
-                hoverInfo.classList.remove('visible');
+            if (!tileData || !tilesetsLoaded) {
                 return;
             }
 
-            const startCol = Math.floor(state.offsetX / (tw * zoom));
-            const endCol = Math.ceil((state.offsetX + cw) / (tw * zoom));
-            const startRow = Math.floor(state.offsetY / (th * zoom));
-            const endRow = Math.ceil((state.offsetY + ch) / (th * zoom));
+            ctx.imageSmoothingEnabled = false;
+
+            const startCol = Math.floor(offsetX / (tileWidth * zoom));
+            const endCol = Math.ceil((offsetX + w) / (tileWidth * zoom));
+            const startRow = Math.floor(offsetY / (tileHeight * zoom));
+            const endRow = Math.ceil((offsetY + h) / (tileHeight * zoom));
 
             const col0 = Math.max(0, startCol);
-            const col1 = Math.min(w - 1, endCol);
+            const col1 = Math.min(mapWidth - 1, endCol);
             const row0 = Math.max(0, startRow);
-            const row1 = Math.min(h - 1, endRow);
+            const row1 = Math.min(mapHeight - 1, endRow);
 
-            const overlap = 0.5;
+            if (col0 > col1 || row0 > row1) return;
 
-            for (let row = row0; row <= row1; row++) {
-                for (let col = col0; col <= col1; col++) {
-                    const idx = row * w + col;
-                    const gid = data[idx] || 0;
-                    if (gid === 0) continue;
+            const chunkCol0 = Math.floor(col0 / chunkSize);
+            const chunkCol1 = Math.floor(col1 / chunkSize);
+            const chunkRow0 = Math.floor(row0 / chunkSize);
+            const chunkRow1 = Math.floor(row1 / chunkSize);
 
-                    let ts = null;
-                    let localId = gid;
-                    for (const t of map.tilesets) {
-                        if (gid >= t.firstgid) {
-                            ts = t;
-                            localId = gid - t.firstgid;
-                        } else break;
-                    }
-                    if (!ts) continue;
-                    const img = state.tilesetImages[ts.firstgid];
-                    if (!img) {
-                        const dx = col * tw * zoom - state.offsetX;
-                        const dy = row * th * zoom - state.offsetY;
-                        ctx.fillStyle = '#ff00ff';
-                        ctx.fillRect(dx, dy, tw * zoom + overlap, th * zoom + overlap);
-                        continue;
-                    }
+            for (let cr = chunkRow0; cr <= chunkRow1; cr++) {
+                for (let cc = chunkCol0; cc <= chunkCol1; cc++) {
+                    const chunk = getChunk(cr, cc);
+                    if (!chunk) continue;
 
-                    const cols = ts.columns || Math.floor(img.width / ts.tilewidth);
-                    const tileIndex = localId;
-                    const sx = (tileIndex % cols) * ts.tilewidth;
-                    const sy = Math.floor(tileIndex / cols) * ts.tileheight;
+                    const startR = cr * chunkSize;
+                    const startC = cc * chunkSize;
+                    const endR = Math.min(startR + chunkSize, mapHeight);
+                    const endC = Math.min(startC + chunkSize, mapWidth);
+                    const cw = (endC - startC) * tileWidth;
+                    const ch = (endR - startR) * tileHeight;
 
-                    const dx = col * tw * zoom - state.offsetX;
-                    const dy = row * th * zoom - state.offsetY;
-                    const dw = tw * zoom + overlap;
-                    const dh = th * zoom + overlap;
+                    const dx = startC * tileWidth * zoom - offsetX;
+                    const dy = startR * tileHeight * zoom - offsetY;
+                    const dw = cw * zoom;
+                    const dh = ch * zoom;
 
-                    ctx.drawImage(img, sx, sy, ts.tilewidth, ts.tileheight, dx, dy, dw, dh);
+                    ctx.drawImage(chunk, 0, 0, cw, ch, dx, dy, dw, dh);
                 }
-            }
-
-            if (state.hoverGid !== null && state.hoverCol >= 0 && state.hoverRow >= 0) {
-                const hx = state.hoverCol * tw * zoom - state.offsetX;
-                const hy = state.hoverRow * th * zoom - state.offsetY;
-                ctx.strokeStyle = 'rgba(255, 215, 0, 0.6)';
-                ctx.lineWidth = 2 / dpr;
-                ctx.shadowColor = 'rgba(255,215,0,0.15)';
-                ctx.shadowBlur = 6;
-                ctx.strokeRect(hx, hy, tw * zoom, th * zoom);
-                ctx.shadowBlur = 0;
-                hoverTileId.textContent = state.hoverGid;
-                hoverPosX.textContent = state.hoverCol;
-                hoverPosY.textContent = state.hoverRow;
-                hoverInfo.classList.add('visible');
-            } else {
-                hoverInfo.classList.remove('visible');
             }
         }
 
-        function resizeCanvas() { renderMap(); }
-
         function setupInteraction() {
-            let isDragging = false, startX = 0, startY = 0, startOffX = 0, startOffY = 0;
+            let isDragging = false,
+                startX = 0,
+                startY = 0,
+                startOffX = 0,
+                startOffY = 0;
+
             container.addEventListener('mousedown', (e) => {
                 if (e.button !== 0) return;
                 isDragging = true;
-                startX = e.clientX; startY = e.clientY;
-                startOffX = state.offsetX; startOffY = state.offsetY;
+                startX = e.clientX;
+                startY = e.clientY;
+                startOffX = offsetX;
+                startOffY = offsetY;
                 container.style.cursor = 'grabbing';
                 e.preventDefault();
             });
+
             window.addEventListener('mousemove', (e) => {
                 if (isDragging) {
-                    const dx = (e.clientX - startX) / state.zoom;
-                    const dy = (e.clientY - startY) / state.zoom;
-                    state.offsetX = startOffX - dx;
-                    state.offsetY = startOffY - dy;
+                    const dx = (e.clientX - startX) / zoom;
+                    const dy = (e.clientY - startY) / zoom;
+                    offsetX = startOffX - dx;
+                    offsetY = startOffY - dy;
                     renderMap();
-                } else {
-                    updateHover(e.clientX, e.clientY);
                 }
             });
+
             window.addEventListener('mouseup', () => {
-                if (isDragging) { isDragging = false; container.style.cursor = 'grab'; }
+                if (isDragging) {
+                    isDragging = false;
+                    container.style.cursor = 'grab';
+                }
             });
+
             container.addEventListener('wheel', (e) => {
                 e.preventDefault();
-                if (!state.map) return;
-                const delta = e.deltaY > 0 ? -0.1 : 0.1;
-                const newZoom = Math.min(8, Math.max(0.1, state.zoom + delta * state.zoom));
-                if (newZoom === state.zoom) return;
+                if (!tileData || !tilesetsLoaded) return;
+
                 const rect = container.getBoundingClientRect();
                 const mx = e.clientX - rect.left;
                 const my = e.clientY - rect.top;
-                const mapX = (mx + state.offsetX) / state.zoom;
-                const mapY = (my + state.offsetY) / state.zoom;
-                state.zoom = newZoom;
-                state.offsetX = mapX * state.zoom - mx;
-                state.offsetY = mapY * state.zoom - my;
+
+                const delta = e.deltaY > 0 ? -0.1 : 0.1;
+                const newZoom = Math.min(64, Math.max(0.02, zoom + delta * zoom));
+
+                if (newZoom === zoom) return;
+
+                const mapX = (mx + offsetX) / zoom;
+                const mapY = (my + offsetY) / zoom;
+
+                zoom = newZoom;
+
+                offsetX = mapX * zoom - mx;
+                offsetY = mapY * zoom - my;
+
                 renderMap();
             }, { passive: false });
-            resetViewBtn.addEventListener('click', () => { state.zoom = 1; state.offsetX = 0; state.offsetY = 0; renderMap(); });
-            zoomInBtn.addEventListener('click', () => { state.zoom = Math.min(8, state.zoom * 1.3); renderMap(); });
-            zoomOutBtn.addEventListener('click', () => { state.zoom = Math.max(0.1, state.zoom / 1.3); renderMap(); });
-        }
 
-        function updateHover(clientX, clientY) {
-            if (!state.map || !state.tilesetsLoaded || state.zoom < 1) {
-                state.hoverGid = null; state.hoverCol = -1; state.hoverRow = -1;
-                hoverInfo.classList.remove('visible');
-                return;
-            }
-            const rect = container.getBoundingClientRect();
-            const mx = clientX - rect.left;
-            const my = clientY - rect.top;
-            const tw = state.map.tilewidth * state.zoom;
-            const th = state.map.tileheight * state.zoom;
-            const col = Math.floor((mx + state.offsetX) / tw);
-            const row = Math.floor((my + state.offsetY) / th);
-            if (col >= 0 && col < state.map.width && row >= 0 && row < state.map.height) {
-                const idx = row * state.map.width + col;
-                const gid = state.map.layers[0].data[idx] || 0;
-                state.hoverGid = gid; state.hoverCol = col; state.hoverRow = row;
-            } else {
-                state.hoverGid = null; state.hoverCol = -1; state.hoverRow = -1;
-                hoverInfo.classList.remove('visible');
-            }
-            renderMap();
+            resetViewBtn.addEventListener('click', () => {
+                zoom = 1;
+                offsetX = 0;
+                offsetY = 0;
+                renderMap();
+            });
+
+            zoomInBtn.addEventListener('click', () => {
+                const rect = container.getBoundingClientRect();
+                const mx = rect.width / 2;
+                const my = rect.height / 2;
+
+                const newZoom = Math.min(64, zoom * 1.3);
+                if (newZoom === zoom) return;
+
+                const mapX = (mx + offsetX) / zoom;
+                const mapY = (my + offsetY) / zoom;
+
+                zoom = newZoom;
+
+                offsetX = mapX * zoom - mx;
+                offsetY = mapY * zoom - my;
+
+                renderMap();
+            });
+
+            zoomOutBtn.addEventListener('click', () => {
+                const rect = container.getBoundingClientRect();
+                const mx = rect.width / 2;
+                const my = rect.height / 2;
+
+                const newZoom = Math.max(0.02, zoom / 1.3);
+                if (newZoom === zoom) return;
+
+                const mapX = (mx + offsetX) / zoom;
+                const mapY = (my + offsetY) / zoom;
+
+                zoom = newZoom;
+
+                offsetX = mapX * zoom - mx;
+                offsetY = mapY * zoom - my;
+
+                renderMap();
+            });
+
+            // Ctrl + +, Ctrl + -, Ctrl + 0
+            document.addEventListener('keydown', (e) => {
+                if (e.ctrlKey && e.key === '0') {
+                    e.preventDefault();
+                    zoom = 1;
+                    offsetX = 0;
+                    offsetY = 0;
+                    renderMap();
+                }
+                if (e.ctrlKey && (e.key === '=' || e.key === '+')) {
+                    e.preventDefault();
+                    const rect = container.getBoundingClientRect();
+                    const mx = rect.width / 2;
+                    const my = rect.height / 2;
+                    const newZoom = Math.min(64, zoom * 1.3);
+                    if (newZoom === zoom) return;
+                    const mapX = (mx + offsetX) / zoom;
+                    const mapY = (my + offsetY) / zoom;
+                    zoom = newZoom;
+                    offsetX = mapX * zoom - mx;
+                    offsetY = mapY * zoom - my;
+                    renderMap();
+                }
+                if (e.ctrlKey && e.key === '-') {
+                    e.preventDefault();
+                    const rect = container.getBoundingClientRect();
+                    const mx = rect.width / 2;
+                    const my = rect.height / 2;
+                    const newZoom = Math.max(0.02, zoom / 1.3);
+                    if (newZoom === zoom) return;
+                    const mapX = (mx + offsetX) / zoom;
+                    const mapY = (my + offsetY) / zoom;
+                    zoom = newZoom;
+                    offsetX = mapX * zoom - mx;
+                    offsetY = mapY * zoom - my;
+                    renderMap();
+                }
+            });
         }
 
         async function loadMapFromURL() {
             try {
-                console.log('Auto-loading map.tmx...');
+                console.log('Loading map.tmx...');
                 const response = await fetch('map.tmx');
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const xmlText = await response.text();
-                const map = await parseTMX(xmlText);
-                state.map = map;
+                mapData = await parseTMX(xmlText);
                 updateInfo();
-                const images = await loadTilesetImages(map);
-                state.tilesetImages = images;
-                state.tilesetsLoaded = true;
-                buildCache();
-                console.log('Loaded tilesets:', Object.keys(images).length);
-                state.zoom = 1; state.offsetX = 0; state.offsetY = 0;
-                renderMap();
+
+                const images = await loadTilesetImages(mapData);
+                tilesetImages = images;
+                tilesetsLoaded = true;
+
+                setupMap();
                 return true;
             } catch (err) {
                 console.warn('Auto-load failed:', err.message);
@@ -757,45 +1018,73 @@
         async function loadMapFromFile(tmxFile, imageFiles) {
             try {
                 const text = await tmxFile.text();
-                const map = await parseTMX(text);
-                state.map = map;
+                mapData = await parseTMX(text);
                 updateInfo();
+
                 const images = {};
-                const total = map.tilesets.length;
+                const total = mapData.tilesets.length;
                 let loaded = 0;
-                for (const ts of map.tilesets) {
-                    if (!ts.imageSource) { loaded++; if (loaded === total) finish(); continue; }
+
+                if (total === 0) {
+                    tilesetImages = images;
+                    tilesetsLoaded = true;
+                    setupMap();
+                    return;
+                }
+
+                for (const ts of mapData.tilesets) {
+                    if (!ts.imageSource) {
+                        loaded++;
+                        if (loaded === total) finish();
+                        continue;
+                    }
                     const filename = ts.imageSource.split(/[\\/]/).pop();
                     let found = false;
                     for (const file of imageFiles) {
                         if (file.name === filename) {
                             const img = new Image();
-                            img.onload = () => { images[ts.firstgid] = img; loaded++; if (loaded === total) finish(); };
-                            img.onerror = () => { console.warn('Failed:', file.name); loaded++; if (loaded === total) finish(); };
+                            img.onload = () => {
+                                images[ts.firstgid] = img;
+                                loaded++;
+                                if (loaded === total) finish();
+                            };
+                            img.onerror = () => {
+                                console.warn('Failed to load:', file.name);
+                                loaded++;
+                                if (loaded === total) finish();
+                            };
                             img.src = URL.createObjectURL(file);
                             found = true;
                             break;
                         }
                     }
-                    if (!found) { console.warn('File not found:', filename); loaded++; if (loaded === total) finish(); }
+                    if (!found) {
+                        console.warn('File not found:', filename);
+                        loaded++;
+                        if (loaded === total) finish();
+                    }
                 }
-                if (total === 0) finish();
 
                 function finish() {
-                    state.tilesetImages = images;
-                    state.tilesetsLoaded = true;
-                    buildCache();
-                    state.zoom = 1; state.offsetX = 0; state.offsetY = 0;
-                    renderMap();
+                    tilesetImages = images;
+                    tilesetsLoaded = true;
+                    setupMap();
                 }
-            } catch (err) { console.error(err); }
+            } catch (err) {
+                console.error(err);
+            }
         }
 
         tmxFileInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
-            state.map = null; state.tilesetImages = {}; state.tilesetsLoaded = false;
-            state.hoverGid = null; state.hoverCol = -1; state.hoverRow = -1;
+            mapData = null;
+            tilesetImages = {};
+            tilesetsLoaded = false;
+            tileData = null;
+            tileCache = {};
+            chunkCache = {};
+
             const imageFiles = imageFileInput.files;
             if (imageFiles.length === 0) {
                 alert('Please select tileset images first (Images button).');
@@ -805,18 +1094,18 @@
         });
 
         imageFileInput.addEventListener('change', () => {
-            if (state.map && !state.tilesetsLoaded) {
+            if (mapData && !tilesetsLoaded) {
                 const tmxFiles = tmxFileInput.files;
                 if (tmxFiles.length > 0) loadMapFromFile(tmxFiles[0], imageFileInput.files);
             }
         });
 
+        window.addEventListener('resize', () => {
+            renderMap();
+        });
+
         async function init() {
             setupInteraction();
-            window.addEventListener('resize', resizeCanvas);
-            window.addEventListener('keydown', (e) => {
-                if (e.ctrlKey && e.key === '0') { e.preventDefault(); state.zoom = 1; state.offsetX = 0; state.offsetY = 0; renderMap(); }
-            });
             const autoOk = await loadMapFromURL();
             if (!autoOk) {
                 manualTmxWrap.style.display = 'inline-block';
