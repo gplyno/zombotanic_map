@@ -93,6 +93,15 @@
             color: #ffffff;
             border-color: #06b6d4;
         }
+        #toolbar .btn-warning {
+            border-color: #f59e0b;
+            color: #f59e0b;
+        }
+        #toolbar .btn-warning:hover {
+            background: #f59e0b;
+            color: #ffffff;
+            border-color: #f59e0b;
+        }
         #toolbar .sep {
             width: 1px;
             height: 28px;
@@ -115,6 +124,46 @@
         #toolbar .info-badge strong {
             color: #ffffff;
             font-weight: 500;
+        }
+        #layer-controls {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .layer-toggle {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: #1a1a1a;
+            padding: 2px 10px 2px 6px;
+            border-radius: 12px;
+            border: 1px solid #2a2a2a;
+            cursor: pointer;
+            font-size: 12px;
+            color: #aaaaaa;
+            transition: all 0.2s ease;
+        }
+        .layer-toggle:hover {
+            border-color: #444444;
+            background: #222222;
+        }
+        .layer-toggle .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            flex-shrink: 0;
+        }
+        .layer-toggle .dot.on {
+            background: #4ade80;
+            box-shadow: 0 0 8px rgba(74, 222, 128, 0.3);
+        }
+        .layer-toggle .dot.off {
+            background: #555555;
+        }
+        .layer-toggle .label {
+            font-weight: 450;
         }
         #map-container {
             flex: 1;
@@ -329,6 +378,10 @@
                 text-align: center;
                 margin-right: 0;
             }
+            #layer-controls {
+                width: 100%;
+                justify-content: center;
+            }
         }
     </style>
 </head>
@@ -357,6 +410,21 @@
             <input type="file" id="imageFileInput" accept="image/*" multiple />
         </div>
         <span class="sep" id="manualSep" style="display:none;"></span>
+
+        <div id="layer-controls">
+            <span class="info-badge" style="border-color:#333; background:#161616; gap:4px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2">
+                    <rect x="2" y="2" width="20" height="20" rx="2" />
+                    <line x1="8" y1="2" x2="8" y2="22" />
+                    <line x1="16" y1="2" x2="16" y2="22" />
+                    <line x1="2" y1="8" x2="22" y2="8" />
+                    <line x1="2" y1="16" x2="22" y2="16" />
+                </svg>
+                <span id="layerCount">0</span>
+            </span>
+        </div>
+
+        <span class="sep"></span>
         <span class="info-badge" id="mapInfo">
             <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="3" y="3" width="7" height="7" />
@@ -465,6 +533,8 @@
         const manualSep = document.getElementById('manualSep');
         const tmxFileInput = document.getElementById('tmxFileInput');
         const imageFileInput = document.getElementById('imageFileInput');
+        const layerControls = document.getElementById('layer-controls');
+        const layerCountEl = document.getElementById('layerCount');
 
         helpBtn.addEventListener('click', () => {
             helpModal.classList.add('active');
@@ -498,7 +568,7 @@
         let offsetY = 0;
         let dpr = window.devicePixelRatio || 1;
 
-        let tileData = null;
+        let allTileData = [];
         let mapWidth = 0;
         let mapHeight = 0;
         let tileWidth = 0;
@@ -507,9 +577,52 @@
         let mapTotalHeight = 0;
 
         let renderRequested = false;
-        let tileCache = {};
         let chunkCache = {};
         let chunkSize = 16;
+
+        // Список слоёв с их видимостью
+        let layers = [];
+        let layerVisibility = {};
+
+        function updateLayerControls() {
+            const existing = layerControls.querySelectorAll('.layer-toggle:not(.info-badge)');
+            existing.forEach(el => el.remove());
+
+            if (layers.length === 0) {
+                layerCountEl.textContent = '0';
+                return;
+            }
+
+            layerCountEl.textContent = layers.length;
+
+            // Создаём переключатели для каждого слоя (в обратном порядке, чтобы сверху были верхние слои)
+            const reversed = [...layers].reverse();
+            for (const layer of reversed) {
+                const name = layer.name || 'layer';
+                const isVisible = layerVisibility[layer.name] !== false;
+                const toggle = document.createElement('div');
+                toggle.className = 'layer-toggle';
+                toggle.dataset.layer = layer.name;
+
+                const dot = document.createElement('span');
+                dot.className = `dot ${isVisible ? 'on' : 'off'}`;
+                toggle.appendChild(dot);
+
+                const label = document.createElement('span');
+                label.className = 'label';
+                label.textContent = name.length > 12 ? name.slice(0, 10) + '…' : name;
+                toggle.appendChild(label);
+
+                toggle.addEventListener('click', () => {
+                    layerVisibility[layer.name] = !layerVisibility[layer.name];
+                    chunkCache = {};
+                    renderMap();
+                    updateLayerControls();
+                });
+
+                layerControls.appendChild(toggle);
+            }
+        }
 
         function updateInfo() {
             if (!mapData) {
@@ -677,6 +790,9 @@
             });
         }
 
+        // Кэш для тайлов
+        let tileCache = {};
+
         function getTileImage(gid) {
             if (gid === 0) return null;
             let ts = null;
@@ -708,7 +824,8 @@
             return tileCache[key];
         }
 
-        function getChunk(chunkRow, chunkCol) {
+        // Сборка чанка из всех видимых слоёв
+        function buildChunk(chunkRow, chunkCol) {
             const key = chunkRow + '_' + chunkCol;
             if (chunkCache[key]) return chunkCache[key];
 
@@ -719,30 +836,40 @@
             const endRow = Math.min(startRow + chunkSize, mapHeight);
             const endCol = Math.min(startCol + chunkSize, mapWidth);
 
-            const c = document.createElement('canvas');
             const cw = (endCol - startCol) * tw;
             const ch = (endRow - startRow) * th;
+
+            // Создаём временный canvas для чанка
+            const c = document.createElement('canvas');
             c.width = cw;
             c.height = ch;
             const cctx = c.getContext('2d');
             cctx.imageSmoothingEnabled = false;
 
-            let allEmpty = true;
-            for (let r = startRow; r < endRow; r++) {
-                for (let col = startCol; col < endCol; col++) {
-                    const idx = r * mapWidth + col;
-                    const gid = tileData[idx] || 0;
-                    if (gid === 0) continue;
-                    allEmpty = false;
-                    const img = getTileImage(gid);
-                    if (!img) continue;
-                    const dx = (col - startCol) * tw;
-                    const dy = (r - startRow) * th;
-                    cctx.drawImage(img, 0, 0, tw, th, dx, dy, tw, th);
+            let hasContent = false;
+
+            // Рисуем все видимые слои
+            for (const layer of layers) {
+                if (layerVisibility[layer.name] === false) continue;
+                const data = layer.data;
+                if (!data) continue;
+
+                for (let r = startRow; r < endRow; r++) {
+                    for (let col = startCol; col < endCol; col++) {
+                        const idx = r * mapWidth + col;
+                        const gid = data[idx] || 0;
+                        if (gid === 0) continue;
+                        const img = getTileImage(gid);
+                        if (!img) continue;
+                        hasContent = true;
+                        const dx = (col - startCol) * tw;
+                        const dy = (r - startRow) * th;
+                        cctx.drawImage(img, 0, 0, tw, th, dx, dy, tw, th);
+                    }
                 }
             }
 
-            if (allEmpty) {
+            if (!hasContent) {
                 chunkCache[key] = null;
                 return null;
             }
@@ -751,13 +878,27 @@
             return c;
         }
 
+        function getChunk(chunkRow, chunkCol) {
+            return buildChunk(chunkRow, chunkCol);
+        }
+
         function setupMap() {
             if (!mapData || !tilesetsLoaded) {
                 console.log('Cannot setup map: missing data');
                 return;
             }
 
-            tileData = mapData.layers[0].data;
+            // Сохраняем все слои
+            layers = mapData.layers;
+            // Инициализируем видимость всех слоёв (все видны по умолчанию)
+            layerVisibility = {};
+            for (const layer of layers) {
+                layerVisibility[layer.name] = true;
+            }
+
+            // Используем данные первого слоя для размера (все слои одного размера)
+            const firstLayer = layers[0];
+            tileData = firstLayer.data;
             mapWidth = mapData.width;
             mapHeight = mapData.height;
             tileWidth = mapData.tilewidth;
@@ -775,7 +916,9 @@
             offsetX = 0;
             offsetY = 0;
 
-            console.log('Map setup complete:', mapWidth, 'x', mapHeight, 'chunk size:', chunkSize);
+            updateLayerControls();
+            console.log('Map setup complete:', mapWidth, 'x', mapHeight, 'layers:', layers.length, 'chunk size:',
+            chunkSize);
             renderMap();
         }
 
@@ -805,7 +948,7 @@
             ctx.fillStyle = '#0a0a0a';
             ctx.fillRect(0, 0, w, h);
 
-            if (!tileData || !tilesetsLoaded) {
+            if (!layers.length || !tilesetsLoaded) {
                 return;
             }
 
@@ -887,7 +1030,7 @@
 
             container.addEventListener('wheel', (e) => {
                 e.preventDefault();
-                if (!tileData || !tilesetsLoaded) return;
+                if (!layers.length || !tilesetsLoaded) return;
 
                 const rect = container.getBoundingClientRect();
                 const mx = e.clientX - rect.left;
@@ -954,7 +1097,6 @@
                 renderMap();
             });
 
-            // Ctrl + +, Ctrl + -, Ctrl + 0
             document.addEventListener('keydown', (e) => {
                 if (e.ctrlKey && e.key === '0') {
                     e.preventDefault();
@@ -1084,6 +1226,7 @@
             tileData = null;
             tileCache = {};
             chunkCache = {};
+            layers = [];
 
             const imageFiles = imageFileInput.files;
             if (imageFiles.length === 0) {
