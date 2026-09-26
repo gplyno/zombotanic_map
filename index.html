@@ -859,7 +859,8 @@
                         const idx = r * mapWidth + col;
                         const gid = data[idx] || 0;
                         if (gid === 0) continue;
-                        const img = getTileImage(gid);
+                        const cleanGid = gid & 0x1FFFFFFF; 
+                        const img = getTileImage(cleanGid);
                         if (!img) continue;
                         hasContent = true;
                         const dx = (col - startCol) * tw;
