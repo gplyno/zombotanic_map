@@ -209,6 +209,7 @@
             height: 14px;
         }
 
+        /* Модальное окно */
         .modal-overlay {
             position: fixed;
             top: 0;
@@ -322,19 +323,53 @@
         }
 
         @media (max-width: 820px) {
-            #toolbar { padding: 8px 14px; gap: 6px; }
-            #toolbar h1 { font-size: 15px; margin-right: 6px; }
-            #toolbar .btn { font-size: 12px; padding: 4px 10px; min-height: 30px; min-width: 30px; }
-            #toolbar .info-badge { font-size: 11px; padding: 2px 10px; }
-            .icon { width: 16px; height: 16px; }
-            .icon-sm { width: 12px; height: 12px; }
-            .modal { padding: 24px 20px; }
-            .modal h2 { font-size: 18px; }
+            #toolbar {
+                padding: 8px 14px;
+                gap: 6px;
+            }
+            #toolbar h1 {
+                font-size: 15px;
+                margin-right: 6px;
+            }
+            #toolbar .btn {
+                font-size: 12px;
+                padding: 4px 10px;
+                min-height: 30px;
+                min-width: 30px;
+            }
+            #toolbar .info-badge {
+                font-size: 11px;
+                padding: 2px 10px;
+            }
+            .icon {
+                width: 16px;
+                height: 16px;
+            }
+            .icon-sm {
+                width: 12px;
+                height: 12px;
+            }
+            .modal {
+                padding: 24px 20px;
+            }
+            .modal h2 {
+                font-size: 18px;
+            }
         }
         @media (max-width: 600px) {
-            #toolbar { flex-wrap: wrap; justify-content: center; }
-            #toolbar h1 { width: 100%; text-align: center; margin-right: 0; }
-            #layer-controls { width: 100%; justify-content: center; }
+            #toolbar {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            #toolbar h1 {
+                width: 100%;
+                text-align: center;
+                margin-right: 0;
+            }
+            #layer-controls {
+                width: 100%;
+                justify-content: center;
+            }
         }
     </style>
 </head>
@@ -452,7 +487,7 @@
             <div class="section">
                 <h3>клавиатура</h3>
                 <div class="shortcut">
-                    <span class="action">сбросить вид</span>
+                    <span class="action">cбросить вид</span>
                     <span class="key">ctrl + 0</span>
                 </div>
                 <div class="shortcut">
@@ -489,10 +524,18 @@
         const layerControls = document.getElementById('layer-controls');
         const layerCountEl = document.getElementById('layerCount');
 
-        helpBtn.addEventListener('click', () => helpModal.classList.add('active'));
-        closeHelpBtn.addEventListener('click', () => helpModal.classList.remove('active'));
+        helpBtn.addEventListener('click', () => {
+            helpModal.classList.add('active');
+        });
+
+        closeHelpBtn.addEventListener('click', () => {
+            helpModal.classList.remove('active');
+        });
+
         helpModal.addEventListener('click', (e) => {
-            if (e.target === helpModal) helpModal.classList.remove('active');
+            if (e.target === helpModal) {
+                helpModal.classList.remove('active');
+            }
         });
 
         document.addEventListener('keydown', (e) => {
@@ -524,17 +567,22 @@
         let renderRequested = false;
         let chunkCache = {};
         let chunkOrder = [];
-        const MAX_CHUNKS = 400; // ограничение кэша, чтобы не сожрать всю память
+        // Увеличено с 400 до 3000: при 12% зуме одновременно нужно ~1500 чанков,
+        // при 400 они вытеснялись друг другом во время отрисовки и часть не рисовалась.
+        const MAX_CHUNKS = 3000;
         let chunkSize = 16;
 
+        // Список слоёв с их видимостью
         let layers = [];
         let layerVisibility = {};
 
+        // Анимации (для воды и т.п.)
+        let tileCache = {};
+        let animTime = 0;
+        let hasAnimations = false;
+
         // Флаги переворота Tiled (старшие 4 бита GID)
-        const FLIP_H = 0x80000000;
-        const FLIP_V = 0x40000000;
-        const FLIP_D = 0x20000000;
-        const FLIP_MASK = 0x1FFFFFFF; // маска для получения чистого ID
+        const FLIP_MASK = 0x1FFFFFFF;
 
         function updateLayerControls() {
             const existing = layerControls.querySelectorAll('.layer-toggle:not(.info-badge)');
@@ -544,8 +592,10 @@
                 layerCountEl.textContent = '0';
                 return;
             }
+
             layerCountEl.textContent = layers.length;
 
+            // Создаём переключатели для каждого слоя (в обратном порядке, чтобы сверху были верхние слои)
             const reversed = [...layers].reverse();
             for (const layer of reversed) {
                 const name = layer.name || 'layer';
@@ -585,7 +635,10 @@
             tileInfoEl.innerHTML = `<strong>${(mapData.width * mapData.height).toLocaleString()}</strong>`;
         }
 
-        // === НАТИВНАЯ РАСПАКОВКА через DecompressionStream (без pako и eval) ===
+        // =============================================================
+        // НАТИВНАЯ РАСПАКОВКА zlib через DecompressionStream
+        // (заменяет pako, который блокировался CSP из-за eval)
+        // =============================================================
         async function decompressBase64(base64, compression) {
             const binary = atob(base64);
             const bytes = new Uint8Array(binary.length);
@@ -594,12 +647,12 @@
             if (!compression) return bytes;
 
             let format;
-            if (compression === 'zlib') format = 'deflate'; // zlib — это deflate с header
+            if (compression === 'zlib') format = 'deflate';
             else if (compression === 'gzip') format = 'gzip';
             else throw new Error('Unknown compression: ' + compression);
 
             if (typeof DecompressionStream === 'undefined') {
-                throw new Error('DecompressionStream не поддерживается браузером. Обновите браузер.');
+                throw new Error('DecompressionStream не поддерживается браузером. Обновите браузер (Chrome 80+, Firefox 113+, Safari 16.4+).');
             }
 
             const ds = new DecompressionStream(format);
@@ -626,7 +679,32 @@
                 const tilecount = parseInt(tilesetEl.getAttribute('tilecount')) || 0;
                 const margin = parseInt(tilesetEl.getAttribute('margin')) || 0;
                 const spacing = parseInt(tilesetEl.getAttribute('spacing')) || 0;
-                return { imageSource: source, tilewidth, tileheight, columns, tilecount, margin, spacing };
+
+                // Парсим анимации <tile id="..."><animation><frame .../></animation></tile>
+                const animations = {};
+                const tileEls = tilesetEl.querySelectorAll(':scope > tile');
+                for (const tileEl of tileEls) {
+                    const id = parseInt(tileEl.getAttribute('id'));
+                    const animEl = tileEl.querySelector('animation');
+                    if (animEl) {
+                        const frames = [];
+                        let totalDuration = 0;
+                        for (const frameEl of animEl.querySelectorAll('frame')) {
+                            const dur = parseInt(frameEl.getAttribute('duration')) || 100;
+                            frames.push({
+                                tileid: parseInt(frameEl.getAttribute('tileid')) || 0,
+                                duration: dur,
+                                startTime: totalDuration
+                            });
+                            totalDuration += dur;
+                        }
+                        if (frames.length) {
+                            animations[id] = { frames, totalDuration };
+                        }
+                    }
+                }
+
+                return { imageSource: source, tilewidth, tileheight, columns, tilecount, margin, spacing, animations };
             } catch (e) {
                 console.error('Error loading .tsx:', url, e.message);
                 return null;
@@ -668,6 +746,7 @@
                     margin: 0,
                     spacing: 0,
                     imageSource: null,
+                    animations: {},
                 };
 
                 if (sourceAttr) {
@@ -680,6 +759,7 @@
                         tilesetDef.margin = def.margin || 0;
                         tilesetDef.spacing = def.spacing || 0;
                         tilesetDef.imageSource = def.imageSource;
+                        tilesetDef.animations = def.animations || {};
                     } else {
                         console.warn('Failed to load .tsx:', sourceAttr);
                     }
@@ -698,7 +778,8 @@
                 map.tilesets.push(tilesetDef);
             }
 
-            // ВАЖНО: сортируем по firstgid DESC, чтобы правильно искать тайлсет
+            // ВАЖНО: сортируем по firstgid DESC, чтобы getTileImage корректно
+            // находил нужный тайлсет через break в первом же совпадении
             map.tilesets.sort((a, b) => b.firstgid - a.firstgid);
 
             const layerEls = doc.querySelectorAll('map > layer');
@@ -711,7 +792,6 @@
                 let encoding = dataEl ? dataEl.getAttribute('encoding') || 'xml' : 'xml';
                 let compression = dataEl ? dataEl.getAttribute('compression') : null;
                 let tileData = [];
-
                 if (dataEl) {
                     if (encoding === 'csv') {
                         const csv = dataEl.textContent.trim();
@@ -722,9 +802,7 @@
                             const decompressed = await decompressBase64(base64, compression);
                             const view = new DataView(decompressed.buffer, decompressed.byteOffset, decompressed.byteLength);
                             const len = Math.floor(decompressed.byteLength / 4);
-                            for (let i = 0; i < len; i++) {
-                                tileData.push(view.getInt32(i * 4, true));
-                            }
+                            for (let i = 0; i < len; i++) tileData.push(view.getInt32(i * 4, true));
                         } catch (e) {
                             console.error('Base64 decode error:', e);
                             tileData = [];
@@ -734,19 +812,11 @@
                         for (const tEl of tileEls) tileData.push(parseInt(tEl.getAttribute('gid')) || 0);
                     }
                 }
-
                 while (tileData.length < width * height) tileData.push(0);
-                map.layers.push({
-                    name, width, height, opacity, encoding, compression,
-                    data: tileData.slice(0, width * height)
-                });
+                map.layers.push({ name, width, height, opacity, encoding, compression, data: tileData.slice(0, width * height) });
             }
-
             if (map.layers.length === 0) {
-                map.layers.push({
-                    name: 'default', width: map.width, height: map.height, opacity: 1,
-                    data: new Array(map.width * map.height).fill(0)
-                });
+                map.layers.push({ name: 'default', width: map.width, height: map.height, opacity: 1, data: new Array(map.width * map.height).fill(0) });
             }
             return map;
         }
@@ -755,8 +825,10 @@
             return new Promise((resolve) => {
                 const images = {};
                 const tilesets = map.tilesets.filter(ts => ts.imageSource);
-                if (tilesets.length === 0) return resolve(images);
-
+                if (tilesets.length === 0) {
+                    resolve(images);
+                    return;
+                }
                 let loaded = 0;
                 const total = tilesets.length;
                 tilesets.forEach((ts) => {
@@ -778,60 +850,61 @@
             });
         }
 
-        let tileCache = {};
+        // Возвращает локальный tileid с учётом анимации
+        function resolveAnimatedTile(ts, localId) {
+            if (!ts.animations || !ts.animations[localId]) return localId;
+            const anim = ts.animations[localId];
+            const t = animTime % anim.totalDuration;
+            for (const f of anim.frames) {
+                if (t >= f.startTime && t < f.startTime + f.duration) return f.tileid;
+            }
+            return anim.frames[0].tileid;
+        }
 
         function getTileImage(gid) {
             if (gid === 0) return null;
             let ts = null;
             let localId = gid;
-
-            // Ищем тайлсет: берём ПЕРВЫЙ (самый старший), у которого firstgid <= gid
             for (const t of mapData.tilesets) {
                 if (gid >= t.firstgid) {
                     ts = t;
                     localId = gid - t.firstgid;
-                    break;
+                    break; // ВАЖНО: берём первый подходящий, а не последний
                 }
             }
             if (!ts) return null;
+
+            // Учитываем анимацию
+            const realLocalId = resolveAnimatedTile(ts, localId);
 
             const img = tilesetImages[ts.firstgid];
             if (!img) return null;
 
             const margin = ts.margin || 0;
             const spacing = ts.spacing || 0;
-            const tileW = ts.tilewidth;
-            const tileH = ts.tileheight;
-            const cols = ts.columns || Math.floor((img.width - margin * 2 + spacing) / (tileW + spacing));
+            const tw = ts.tilewidth;
+            const th = ts.tileheight;
+            const cols = ts.columns || Math.floor((img.width - margin * 2 + spacing) / (tw + spacing));
 
-            const col = localId % cols;
-            const row = Math.floor(localId / cols);
-            const sx = margin + col * (tileW + spacing);
-            const sy = margin + row * (tileH + spacing);
+            const col = realLocalId % cols;
+            const row = Math.floor(realLocalId / cols);
+            const sx = margin + col * (tw + spacing);
+            const sy = margin + row * (th + spacing);
 
-            const key = ts.firstgid + '_' + localId;
+            const key = ts.firstgid + '_' + realLocalId;
             if (!tileCache[key]) {
-                // Создаём холст с "экструзией" 1 пиксель по краям — убирает чёрные швы при отдалении
-                const PAD = 1;
                 const c = document.createElement('canvas');
-                c.width = tileW + PAD * 2;
-                c.height = tileH + PAD * 2;
+                c.width = tw;
+                c.height = th;
                 const cctx = c.getContext('2d');
                 cctx.imageSmoothingEnabled = false;
-                // Основной тайл
-                cctx.drawImage(img, sx, sy, tileW, tileH, PAD, PAD, tileW, tileH);
-                // Края (клонируем 1-пиксельные полосы)
-                try {
-                    cctx.drawImage(c, PAD, PAD, tileW, 1, PAD, 0, tileW, 1);           // верх
-                    cctx.drawImage(c, PAD, PAD + tileH - 1, tileW, 1, PAD, PAD + tileH, tileW, 1); // низ
-                    cctx.drawImage(c, PAD, PAD, 1, tileH, 0, PAD, 1, tileH);           // лево
-                    cctx.drawImage(c, PAD + tileW - 1, PAD, 1, tileH, PAD + tileW, PAD, 1, tileH); // право
-                } catch (e) { /* на всякий случай */ }
-                tileCache[key] = { canvas: c, pad: PAD };
+                cctx.drawImage(img, sx, sy, tw, th, 0, 0, tw, th);
+                tileCache[key] = c;
             }
             return tileCache[key];
         }
 
+        // Сборка чанка из всех видимых слоёв
         function buildChunk(chunkRow, chunkCol) {
             const key = chunkRow + '_' + chunkCol;
             if (chunkCache[key] !== undefined) return chunkCache[key];
@@ -864,22 +937,14 @@
                         const idx = r * mapWidth + col;
                         const rawGid = data[idx] || 0;
                         if (rawGid === 0) continue;
-
-                        // Отсекаем флаги переворота
+                        // Отсекаем флаги переворота Tiled (иначе рисуются "чужие" тайлы)
                         const gid = rawGid & FLIP_MASK;
-                        const tileObj = getTileImage(gid);
-                        if (!tileObj) continue;
-
+                        const img = getTileImage(gid);
+                        if (!img) continue;
                         hasContent = true;
                         const dx = (col - startCol) * tw;
                         const dy = (r - startRow) * th;
-                        // Рисуем с учётом padding (сдвигаем на -pad)
-                        cctx.drawImage(
-                            tileObj.canvas,
-                            0, 0, tileObj.canvas.width, tileObj.canvas.height,
-                            dx - tileObj.pad, dy - tileObj.pad,
-                            tw + tileObj.pad * 2, th + tileObj.pad * 2
-                        );
+                        cctx.drawImage(img, 0, 0, tw, th, dx, dy, tw, th);
                     }
                 }
             }
@@ -892,7 +957,7 @@
             chunkCache[key] = c;
             chunkOrder.push(key);
 
-            // Ограничиваем размер кэша — иначе 44 ГБ ОЗУ
+            // Ограничиваем кэш
             while (chunkOrder.length > MAX_CHUNKS) {
                 const old = chunkOrder.shift();
                 if (old !== key) delete chunkCache[old];
@@ -901,14 +966,24 @@
             return c;
         }
 
+        function getChunk(chunkRow, chunkCol) {
+            return buildChunk(chunkRow, chunkCol);
+        }
+
         function setupMap() {
-            if (!mapData || !tilesetsLoaded) return;
+            if (!mapData || !tilesetsLoaded) {
+                console.log('Cannot setup map: missing data');
+                return;
+            }
 
             layers = mapData.layers;
             layerVisibility = {};
-            for (const layer of layers) layerVisibility[layer.name] = true;
+            for (const layer of layers) {
+                layerVisibility[layer.name] = true;
+            }
 
             const firstLayer = layers[0];
+            tileData = firstLayer.data;
             mapWidth = mapData.width;
             mapHeight = mapData.height;
             tileWidth = mapData.tilewidth;
@@ -923,11 +998,15 @@
             chunkCache = {};
             chunkOrder = [];
 
+            // Есть ли анимации?
+            hasAnimations = mapData.tilesets.some(ts => ts.animations && Object.keys(ts.animations).length > 0);
+
             zoom = 1;
             offsetX = 0;
             offsetY = 0;
 
             updateLayerControls();
+            console.log('Map setup complete:', mapWidth, 'x', mapHeight, 'layers:', layers.length, 'chunk size:', chunkSize);
             renderMap();
         }
 
@@ -944,6 +1023,7 @@
             const rect = container.getBoundingClientRect();
             const w = rect.width;
             const h = rect.height;
+
             if (w === 0 || h === 0) return;
 
             canvas.width = w * dpr;
@@ -956,7 +1036,9 @@
             ctx.fillStyle = '#0a0a0a';
             ctx.fillRect(0, 0, w, h);
 
-            if (!layers.length || !tilesetsLoaded) return;
+            if (!layers.length || !tilesetsLoaded) {
+                return;
+            }
 
             ctx.imageSmoothingEnabled = false;
 
@@ -979,7 +1061,7 @@
 
             for (let cr = chunkRow0; cr <= chunkRow1; cr++) {
                 for (let cc = chunkCol0; cc <= chunkCol1; cc++) {
-                    const chunk = buildChunk(cr, cc);
+                    const chunk = getChunk(cr, cc);
                     if (!chunk) continue;
 
                     const startR = cr * chunkSize;
@@ -1000,7 +1082,11 @@
         }
 
         function setupInteraction() {
-            let isDragging = false, startX = 0, startY = 0, startOffX = 0, startOffY = 0;
+            let isDragging = false,
+                startX = 0,
+                startY = 0,
+                startOffX = 0,
+                startOffY = 0;
 
             container.addEventListener('mousedown', (e) => {
                 if (e.button !== 0) return;
@@ -1033,59 +1119,85 @@
             container.addEventListener('wheel', (e) => {
                 e.preventDefault();
                 if (!layers.length || !tilesetsLoaded) return;
+
                 const rect = container.getBoundingClientRect();
                 const mx = e.clientX - rect.left;
                 const my = e.clientY - rect.top;
+
                 const delta = e.deltaY > 0 ? -0.1 : 0.1;
                 const newZoom = Math.min(64, Math.max(0.02, zoom + delta * zoom));
+
                 if (newZoom === zoom) return;
+
                 const mapX = (mx + offsetX) / zoom;
                 const mapY = (my + offsetY) / zoom;
+
                 zoom = newZoom;
+
                 offsetX = mapX * zoom - mx;
                 offsetY = mapY * zoom - my;
+
                 renderMap();
             }, { passive: false });
 
             resetViewBtn.addEventListener('click', () => {
-                zoom = 1; offsetX = 0; offsetY = 0; renderMap();
+                zoom = 1;
+                offsetX = 0;
+                offsetY = 0;
+                renderMap();
             });
 
             zoomInBtn.addEventListener('click', () => {
                 const rect = container.getBoundingClientRect();
-                const mx = rect.width / 2, my = rect.height / 2;
+                const mx = rect.width / 2;
+                const my = rect.height / 2;
+
                 const newZoom = Math.min(64, zoom * 1.3);
                 if (newZoom === zoom) return;
+
                 const mapX = (mx + offsetX) / zoom;
                 const mapY = (my + offsetY) / zoom;
+
                 zoom = newZoom;
+
                 offsetX = mapX * zoom - mx;
                 offsetY = mapY * zoom - my;
+
                 renderMap();
             });
 
             zoomOutBtn.addEventListener('click', () => {
                 const rect = container.getBoundingClientRect();
-                const mx = rect.width / 2, my = rect.height / 2;
+                const mx = rect.width / 2;
+                const my = rect.height / 2;
+
                 const newZoom = Math.max(0.02, zoom / 1.3);
                 if (newZoom === zoom) return;
+
                 const mapX = (mx + offsetX) / zoom;
                 const mapY = (my + offsetY) / zoom;
+
                 zoom = newZoom;
+
                 offsetX = mapX * zoom - mx;
                 offsetY = mapY * zoom - my;
+
                 renderMap();
             });
 
             document.addEventListener('keydown', (e) => {
                 if (e.ctrlKey && e.key === '0') {
                     e.preventDefault();
-                    zoom = 1; offsetX = 0; offsetY = 0; renderMap();
+                    zoom = 1;
+                    offsetX = 0;
+                    offsetY = 0;
+                    renderMap();
                 }
                 if (e.ctrlKey && (e.key === '=' || e.key === '+')) {
                     e.preventDefault();
                     const rect = container.getBoundingClientRect();
-                    const mx = rect.width / 2, my = rect.height / 2;
+                    const mx = rect.width / 2;
+                    const my = rect.height / 2;
                     const newZoom = Math.min(64, zoom * 1.3);
                     if (newZoom === zoom) return;
                     const mapX = (mx + offsetX) / zoom;
@@ -1098,7 +1210,8 @@
                 if (e.ctrlKey && e.key === '-') {
                     e.preventDefault();
                     const rect = container.getBoundingClientRect();
-                    const mx = rect.width / 2, my = rect.height / 2;
+                    const mx = rect.width / 2;
+                    const my = rect.height / 2;
                     const newZoom = Math.max(0.02, zoom / 1.3);
                     if (newZoom === zoom) return;
                     const mapX = (mx + offsetX) / zoom;
@@ -1149,12 +1262,6 @@
                     return;
                 }
 
-                const finish = () => {
-                    tilesetImages = images;
-                    tilesetsLoaded = true;
-                    setupMap();
-                };
-
                 for (const ts of mapData.tilesets) {
                     if (!ts.imageSource) {
                         loaded++;
@@ -1187,6 +1294,12 @@
                         if (loaded === total) finish();
                     }
                 }
+
+                function finish() {
+                    tilesetImages = images;
+                    tilesetsLoaded = true;
+                    setupMap();
+                }
             } catch (err) {
                 console.error(err);
             }
@@ -1198,6 +1311,7 @@
             mapData = null;
             tilesetImages = {};
             tilesetsLoaded = false;
+            tileData = null;
             tileCache = {};
             chunkCache = {};
             chunkOrder = [];
@@ -1205,7 +1319,7 @@
 
             const imageFiles = imageFileInput.files;
             if (imageFiles.length === 0) {
-                alert('Сначала выберите картинки тайлсетов (кнопка Images).');
+                alert('Please select tileset images first (Images button).');
                 return;
             }
             loadMapFromFile(file, imageFiles);
@@ -1218,16 +1332,22 @@
             }
         });
 
-        window.addEventListener('resize', () => renderMap());
+        window.addEventListener('resize', () => {
+            renderMap();
+        });
+
+        // Тикер анимаций — если есть хотя бы одна анимация, перерисовываем раз в 200 мс
+        setInterval(() => {
+            if (!tilesetsLoaded || !hasAnimations) return;
+            animTime = performance.now();
+            // Сбрасываем кэш чанков, чтобы тайлы перерисовались с новым кадром анимации
+            chunkCache = {};
+            chunkOrder = [];
+            renderMap();
+        }, 200);
 
         async function init() {
             setupInteraction();
-
-            // Проверка поддержки DecompressionStream
-            if (typeof DecompressionStream === 'undefined') {
-                console.warn('DecompressionStream не поддерживается. Обновите браузер (Chrome 80+, Firefox 113+, Safari 16.4+).');
-            }
-
             const autoOk = await loadMapFromURL();
             if (!autoOk) {
                 manualTmxWrap.style.display = 'inline-block';
